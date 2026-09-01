@@ -73,3 +73,9 @@ Instagram e YouTube possono cambiare markup o limitare accessi automatizzati. Pe
 
 ## v3.1
 Corretto errore di sintassi nella funzione `meta_()` del file `Code.gs` (virgolette nella RegExp).
+
+## v3.2 — Link originale
+Ogni ricetta importata conserva già il campo `source` nel foglio `Recipes`.
+La scheda ricetta ora mostra il pulsante **Apri video / fonte originale** quando `source` contiene l'URL originale (Instagram, YouTube o sito web). Il link viene aperto in una nuova scheda/app.
+
+Per questa modifica non è necessario cambiare la struttura del Google Sheet.
