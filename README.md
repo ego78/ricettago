@@ -1,0 +1,47 @@
+# RicettaGo — GitHub Pages + Google Sheets + Drive + GPT
+
+Questa versione non richiede Vercel, Firebase o un server tradizionale.
+
+## Architettura
+- **GitHub Pages**: interfaccia HTML/CSS/JS e PWA.
+- **Google Apps Script**: backend.
+- **Google Sheets**: database.
+- **Google Drive**: immagini.
+- **OpenAI API**: chiamata esclusivamente da Apps Script.
+
+> IMPORTANTE: la chiave OpenAI NON deve essere inserita nel repository GitHub o nel JavaScript pubblico. Il codice può stare tutto su GitHub; il segreto va nelle **Script Properties** di Apps Script.
+
+## 1. Crea il backend Apps Script
+1. Apri Google Apps Script e crea un nuovo progetto.
+2. Copia `apps-script/Code.gs` nel file `Code.gs`.
+3. Copia il contenuto di `apps-script/appsscript.json` nel manifest del progetto.
+4. In **Impostazioni progetto → Proprietà script**, crea:
+   - `OPENAI_API_KEY` = la tua chiave API OpenAI.
+5. Esegui manualmente una volta la funzione `setupRicettaGo`.
+6. Autorizza accesso a Fogli Google, Drive e richieste esterne.
+7. Nei log troverai il Foglio Google e la cartella Drive creati automaticamente.
+
+## 2. Pubblica Apps Script
+1. **Esegui deployment → Nuovo deployment → App web**.
+2. Esegui come: **Me**.
+3. Accesso: scegli l'opzione che consente alla tua GitHub Page di chiamare la Web App.
+4. Copia l'URL che termina in `/exec`.
+
+## 3. Pubblica su GitHub Pages
+Carica nella root del repository:
+- `index.html`
+- `manifest.webmanifest`
+- `sw.js`
+- cartella `assets`
+
+In GitHub: **Settings → Pages → Deploy from a branch → main / root**.
+
+Apri il sito GitHub Pages, premi ⚙️ e incolla l'URL `/exec` di Apps Script.
+
+## Sicurezza
+GitHub Pages è pubblico lato client. Qualunque segreto inserito nei file GitHub può essere letto. Per questo la API key GPT è conservata nelle Script Properties di Google Apps Script. Il browser conosce soltanto l'URL della Web App.
+
+Per un'app personale/familiare questa architettura è semplice ed economica. Prima di renderla pubblica a molti utenti è consigliato aggiungere autenticazione e protezione anti-abuso.
+
+## Importazione da social
+Foto/screenshot e testo sono supportati direttamente. Un semplice link Instagram/TikTok/YouTube non garantisce che Apps Script/OpenAI possa leggere il contenuto del post; l'app evita di inventare una ricetta quando il contenuto non è disponibile.
