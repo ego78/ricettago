@@ -45,3 +45,10 @@ Per un'app personale/familiare questa architettura è semplice ed economica. Pri
 
 ## Importazione da social
 Foto/screenshot e testo sono supportati direttamente. Un semplice link Instagram/TikTok/YouTube non garantisce che Apps Script/OpenAI possa leggere il contenuto del post; l'app evita di inventare una ricetta quando il contenuto non è disponibile.
+
+
+## v2 - Importazione dai siti web
+Quando incolli l'URL di una normale pagina di ricetta, Apps Script scarica la pagina e cerca prima i dati strutturati Schema.org Recipe (JSON-LD): titolo, ingredienti, istruzioni, porzioni, tempi, nutrizione e immagine. Se non sono presenti, passa a GPT il testo leggibile della pagina come fallback. La foto principale viene copiata su Google Drive quando il sito ne consente il download.
+
+### Aggiornamento
+Sostituisci `index.html` su GitHub e `Code.gs` in Apps Script con quelli di questa versione. Poi crea una nuova versione/deployment della Web App Apps Script. Se cambia l'URL `/exec`, aggiornalo nelle impostazioni di RicettaGo.
