@@ -74,8 +74,18 @@ Instagram e YouTube possono cambiare markup o limitare accessi automatizzati. Pe
 ## v3.1
 Corretto errore di sintassi nella funzione `meta_()` del file `Code.gs` (virgolette nella RegExp).
 
-## v3.2 — Link originale
-Ogni ricetta importata conserva già il campo `source` nel foglio `Recipes`.
-La scheda ricetta ora mostra il pulsante **Apri video / fonte originale** quando `source` contiene l'URL originale (Instagram, YouTube o sito web). Il link viene aperto in una nuova scheda/app.
+## v3.1.1 — Solo link originale
+Questa build riparte esattamente dal backend `Code.gs` della v3.1 corretta.
+Non è stata modificata alcuna funzione di importazione Instagram, YouTube, foto o GPT.
 
-Per questa modifica non è necessario cambiare la struttura del Google Sheet.
+Sono stati modificati esclusivamente:
+- `assets/app.js`: pulsante **Apri video / fonte originale**
+- `assets/style.css`: stile del pulsante
+- `sw.js`: nuovo nome cache per forzare l'aggiornamento della PWA
+
+Per aggiornare una v3.1 funzionante, sostituisci SOLO questi tre file su GitHub.
+NON sostituire `apps-script/Code.gs`.
+
+
+## v4 - Instagram via Apify
+Aggiungi nelle Script Properties `APIFY_API_TOKEN` con il tuo token Apify. Instagram Reel usa `apify/instagram-reel-scraper`, richiede caption, transcript e copertina `displayUrl`; GPT crea la ricetta e la foto viene salvata su Drive. Poi crea una nuova versione del deployment Apps Script.
