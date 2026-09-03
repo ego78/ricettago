@@ -1,4 +1,4 @@
-const VERSION="5.0 Complete";
+const VERSION="5.1 Complete - Instagram 403 fix";
 const SHEETS={RECIPES:"Recipes",PLANNER:"Planner",SHOPPING:"Shopping",PANTRY:"Pantry",LOGS:"ImportLog"};
 const HEADERS={
   Recipes:["id","createdAt","updatedAt","title","description","timeMinutes","timeText","servings","calories","protein","carbs","fat","difficulty","category","tagsJson","ingredientsJson","stepsJson","source","sourceType","sourceAuthor","originalVideoUrl","imageFileId","imageUrl","videoUrl","favorite","rating","notes","variantOf","appliancesJson"],
@@ -27,10 +27,44 @@ function listRecipes_(){return rows_(SHEETS.RECIPES).map(recipe_).sort((a,b)=>St
 function getRecipe_(id){const r=rows_(SHEETS.RECIPES).find(x=>String(x.id)===String(id));if(!r)throw new Error("Ricetta non trovata");return recipe_(r)}
 function log_(source,status,message,id){append_(SHEETS.LOGS,{createdAt:new Date().toISOString(),source:source||"",status,message:message||"",recipeId:id||""})}
 function openAIJson_(messages,model){const key=props_().getProperty("OPENAI_API_KEY");if(!key)throw new Error("Manca OPENAI_API_KEY nelle Script Properties.");const m=model||props_().getProperty("OPENAI_MODEL")||"gpt-5-mini";const payload={model:m,messages,response_format:{type:"json_object"}};const res=UrlFetchApp.fetch("https://api.openai.com/v1/chat/completions",{method:"post",contentType:"application/json",headers:{Authorization:"Bearer "+key},payload:JSON.stringify(payload),muteHttpExceptions:true});const txt=res.getContentText();let j;try{j=JSON.parse(txt)}catch(e){throw new Error("Risposta OpenAI non valida")};if(res.getResponseCode()>=300)throw new Error((j.error&&j.error.message)||"Errore OpenAI");return JSON.parse(j.choices[0].message.content)}
-function imageParts_(urls){return (urls||[]).filter(Boolean).slice(0,4).map(u=>({type:"image_url",image_url:{url:u}}))}
+function fetchImageForVision_(url){
+  if(!url)return "";
+  try{
+    const r=UrlFetchApp.fetch(url,{muteHttpExceptions:true,followRedirects:true,headers:{
+      "User-Agent":"Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/125 Mobile Safari/537.36",
+      "Referer":"https://www.instagram.com/",
+      "Accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+    }});
+    if(r.getResponseCode()<200||r.getResponseCode()>=300)return "";
+    const b=r.getBlob(),bytes=b.getBytes();
+    if(bytes.length>4500000)return "";
+    return "data:"+(b.getContentType()||"image/jpeg")+";base64,"+Utilities.base64Encode(bytes);
+  }catch(e){return ""}
+}
+function imageParts_(urls){
+  const out=[];
+  (urls||[]).filter(Boolean).slice(0,4).forEach(u=>{
+    const data=fetchImageForVision_(u);
+    if(data)out.push({type:"image_url",image_url:{url:data}});
+  });
+  return out;
+}
 function saveDataImage_(dataUrl){if(!dataUrl)return {id:"",url:""};const m=String(dataUrl).match(/^data:(.+);base64,(.+)$/);if(!m)throw new Error("Immagine non valida");const blob=Utilities.newBlob(Utilities.base64Decode(m[2]),m[1],"ricetta-"+Date.now()+".jpg");return saveBlob_(blob)}
 function saveBlob_(blob){const folder=DriveApp.getFolderById(props_().getProperty("DRIVE_FOLDER_ID"));const f=folder.createFile(blob);try{f.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.VIEW)}catch(e){}return {id:f.getId(),url:"https://drive.google.com/thumbnail?id="+f.getId()+"&sz=w1600"}}
-function saveRemoteImage_(url){if(!url)return {id:"",url:""};try{const r=UrlFetchApp.fetch(url,{muteHttpExceptions:true,followRedirects:true,headers:{"User-Agent":"Mozilla/5.0"}});if(r.getResponseCode()<200||r.getResponseCode()>=400)return {id:"",url:url};return saveBlob_(r.getBlob().setName("ricetta-web-"+Date.now()))}catch(e){return {id:"",url:url}}}
+function saveRemoteImage_(url){
+  if(!url)return {id:"",url:"",status:"NO_IMAGE"};
+  try{
+    const r=UrlFetchApp.fetch(url,{muteHttpExceptions:true,followRedirects:true,headers:{
+      "User-Agent":"Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/125 Mobile Safari/537.36",
+      "Referer":"https://www.instagram.com/",
+      "Accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+    }});
+    const status=r.getResponseCode();
+    if(status<200||status>=300)return {id:"",url:"",status:"IMAGE_HTTP_"+status};
+    const saved=saveBlob_(r.getBlob().setName("ricetta-web-"+Date.now()));
+    return {id:saved.id,url:saved.url,status:"OK"};
+  }catch(e){return {id:"",url:"",status:"IMAGE_ERROR"}}
+}
 function isUrl_(s){return /^https?:\/\/\S+$/i.test(String(s||"").trim())}
 function sourceType_(s){s=String(s||"");if(/instagram\.com/i.test(s))return "instagram";if(/youtube\.com|youtu\.be/i.test(s))return "youtube";if(/^https?:/i.test(s))return "web";return "text"}
 function decodeHtml_(s){return String(s||"").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&nbsp;/g," ")}
@@ -47,7 +81,39 @@ function instagram_(url){const actor=props_().getProperty("APIFY_INSTAGRAM_ACTOR
 function collectSource_(source){if(!isUrl_(source))return {type:"text",url:"",title:"",description:String(source||""),transcript:"",image:"",visualUrls:[],author:"",videoUrl:""};if(/instagram\.com/i.test(source))return instagram_(source);if(/youtube\.com|youtu\.be/i.test(source))return youtube_(source);return fetchWeb_(source)}
 function recipePrompt_(info){let material="";if(info.type==="web")material=["URL: "+info.url,"TITOLO: "+info.title,"DATI STRUTTURATI: "+(info.structured?"SI":"NO"),"INGREDIENTI:\n"+(info.ingredients||[]).join("\n"),"PROCEDIMENTO:\n"+(info.steps||[]).join("\n"),"NUTRIZIONE: "+JSON.stringify(info.nutrition||{}),"TESTO PAGINA:\n"+(info.text||"")].join("\n\n");else material=["FONTE: "+info.type,"URL: "+(info.url||""),"TITOLO: "+(info.title||""),"CAPTION/DESCRIZIONE:\n"+(info.description||""),"TRASCRIZIONE:\n"+(info.transcript||"")].join("\n\n");return `Estrai una ricetta fedele SOLTANTO dalle informazioni disponibili. Non inventare ingredienti o passaggi. Le immagini allegate sono fotogrammi/copertine: usa solo testo o elementi chiaramente visibili, senza deduzioni speculative. Se le quantità non sono presenti, lascia quantity vuoto invece di inventarle. Classifica automaticamente la ricetta. Restituisci SOLO JSON valido con questa struttura:\n{"title":"","description":"breve","timeMinutes":0,"timeText":"","servings":0,"calories":0,"protein":0,"carbs":0,"fat":0,"difficulty":"Facile|Media|Difficile","category":"Primi|Secondi|Dolci|Pane e pizza|Contorni|Antipasti|Colazione|Snack|Bevande|Altro","tags":["..."],"ingredients":[{"name":"","quantity":"","unit":"","note":""}],"steps":["..."],"appliances":["Bimby","Friggitrice ad aria"]}. I nutrienti possono essere stimati solo se ingredienti e quantità sono sufficienti.\n\n${material}`}
 function saveRecipe_(r,meta){const now=new Date().toISOString(),id=Utilities.getUuid();const obj={id,createdAt:now,updatedAt:now,title:r.title||meta.title||"Ricetta",description:r.description||"",timeMinutes:r.timeMinutes||0,timeText:r.timeText||"",servings:r.servings||1,calories:r.calories||0,protein:r.protein||0,carbs:r.carbs||0,fat:r.fat||0,difficulty:r.difficulty||"",category:r.category||"Altro",tagsJson:JSON.stringify(r.tags||[]),ingredientsJson:JSON.stringify((r.ingredients||[]).map(normIng_)),stepsJson:JSON.stringify(r.steps||[]),source:meta.source||"",sourceType:meta.sourceType||"",sourceAuthor:meta.sourceAuthor||"",originalVideoUrl:meta.originalVideoUrl||"",imageFileId:meta.imageFileId||"",imageUrl:meta.imageUrl||"",videoUrl:meta.videoUrl||"",favorite:false,rating:0,notes:"",variantOf:meta.variantOf||"",appliancesJson:JSON.stringify(r.appliances||[])};append_(SHEETS.RECIPES,obj);return recipe_(obj)}
-function importRecipe_(p){const source=String(p.source||"").trim();if(!source&&!p.imageData)throw new Error("Inserisci link, testo o foto.");if(source&&isUrl_(source)){const ex=rows_(SHEETS.RECIPES).find(x=>String(x.source)===source);if(ex)return {id:ex.id,duplicate:true}}try{const info=collectSource_(source),content=[{type:"text",text:recipePrompt_(info)}];if(p.imageData)content.push({type:"image_url",image_url:{url:p.imageData}});else content.push(...imageParts_(info.visualUrls));const r=openAIJson_([{role:"system",content:"Sei un assistente culinario preciso. Devi restituire JSON valido e non inventare dati mancanti."},{role:"user",content}]);if(!r.ingredients||!r.ingredients.length||!r.steps||!r.steps.length)throw new Error("La fonte è stata letta, ma non contiene abbastanza informazioni per una ricetta completa.");const img=p.imageData?saveDataImage_(p.imageData):saveRemoteImage_(info.image);const saved=saveRecipe_(r,{source,sourceType:info.type,sourceAuthor:info.author||"",originalVideoUrl:(info.type==="instagram"||info.type==="youtube")?source:"",imageFileId:img.id,imageUrl:img.url,videoUrl:info.videoUrl||""});log_(source,"OK","Importata",saved.id);return {id:saved.id,duplicate:false}}catch(e){log_(source,"ERROR",String(e.message||e),"");throw e}}
+function importRecipe_(p){
+  const source=String(p.source||"").trim();
+  if(!source&&!p.imageData)throw new Error("Inserisci link, testo o foto.");
+  if(source&&isUrl_(source)){
+    const ex=rows_(SHEETS.RECIPES).find(x=>String(x.source)===source);
+    if(ex)return {id:ex.id,duplicate:true};
+  }
+  try{
+    const info=collectSource_(source);
+    log_(source,"SOURCE_OK","Fonte recuperata: "+info.type,"");
+    const content=[{type:"text",text:recipePrompt_(info)}];
+    if(p.imageData)content.push({type:"image_url",image_url:{url:p.imageData}});
+    else{
+      const vision=imageParts_(info.visualUrls);
+      if(vision.length)content.push(...vision);
+      else if(info.type==="instagram")log_(source,"IMAGE_SKIPPED","Copertina Instagram non accessibile a GPT; continuo con caption/trascrizione.","");
+    }
+    const r=openAIJson_([{role:"system",content:"Sei un assistente culinario preciso. Devi restituire JSON valido e non inventare dati mancanti."},{role:"user",content}]);
+    if(!r.ingredients||!r.ingredients.length||!r.steps||!r.steps.length)throw new Error("La fonte è stata letta, ma non contiene abbastanza informazioni per una ricetta completa.");
+    log_(source,"RECIPE_OK","Ricetta estratta correttamente.","");
+    let img={id:"",url:"",status:"NO_IMAGE"};
+    if(p.imageData){img=saveDataImage_(p.imageData);img.status="OK";}
+    else img=saveRemoteImage_(info.image);
+    const saved=saveRecipe_(r,{source,sourceType:info.type,sourceAuthor:info.author||"",originalVideoUrl:(info.type==="instagram"||info.type==="youtube")?source:"",imageFileId:img.id||"",imageUrl:img.url||"",videoUrl:info.videoUrl||""});
+    if(img.status==="OK")log_(source,"IMAGE_OK","Immagine salvata su Drive.",saved.id);
+    else log_(source,"IMAGE_WARNING","Ricetta salvata senza copertina: "+img.status,saved.id);
+    log_(source,"OK","Importata",saved.id);
+    return {id:saved.id,duplicate:false,imageStatus:img.status};
+  }catch(e){
+    log_(source,"ERROR",String(e.message||e),"");
+    throw e;
+  }
+}
 function smartSearch_(q){const rec=listRecipes_();if(!rec.length)return [];const compact=rec.slice(0,150).map(r=>({id:r.id,title:r.title,time:r.timeMinutes,category:r.category,tags:r.tags,ingredients:r.ingredients.map(i=>i.name).slice(0,12),calories:r.calories}));try{const j=openAIJson_([{role:"system",content:"Seleziona le ricette che soddisfano meglio la richiesta. Restituisci JSON {ids:[...]} senza inventare ID."},{role:"user",content:"Richiesta: "+q+"\nRicette: "+JSON.stringify(compact)}]);return (j.ids||[]).filter(id=>compact.some(x=>x.id===id))}catch(e){const t=String(q).toLowerCase();return rec.filter(r=>JSON.stringify(r).toLowerCase().includes(t)).map(r=>r.id)}}
 function pantrySuggestions_(){const pantry=rows_(SHEETS.PANTRY).map(x=>String(x.item).toLowerCase()),rec=listRecipes_();return rec.map(r=>{const ing=r.ingredients.map(i=>String(i.name).toLowerCase());let hit=ing.filter(i=>pantry.some(p=>i.includes(p)||p.includes(i))).length;return {id:r.id,score:ing.length?hit/ing.length:0,hit}}).filter(x=>x.hit>0).sort((a,b)=>b.score-a.score||b.hit-a.hit).slice(0,12).map(x=>x.id)}
 function createFromPantry_(){const p=rows_(SHEETS.PANTRY);if(!p.length)throw new Error("Aggiungi prima qualche ingrediente in dispensa.");const j=openAIJson_([{role:"system",content:"Crea una ricetta pratica usando soprattutto gli ingredienti disponibili. Output JSON con lo stesso schema ricetta richiesto."},{role:"user",content:"Dispensa: "+JSON.stringify(p.map(x=>({item:x.item,quantity:x.quantity,unit:x.unit})) )+"\nRestituisci JSON con title,description,timeMinutes,timeText,servings,calories,protein,carbs,fat,difficulty,category,tags,ingredients[{name,quantity,unit,note}],steps,appliances."}]);const r=saveRecipe_(j,{source:"pantry://generated",sourceType:"ai",sourceAuthor:"RicettaGo AI"});return {id:r.id}}
