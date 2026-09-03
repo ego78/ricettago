@@ -69,3 +69,13 @@ Usa la modalità **Importazione multipla**, un URL per riga. Il browser effettua
 
 ## Sicurezza
 Le API key sono solo nelle Script Properties. GitHub Pages contiene esclusivamente codice client pubblico. Prima di esporre l'app a utenti non fidati, aggiungi autenticazione/allowlist perché un URL Apps Script pubblico può essere abusato da chi lo scopre.
+
+## v5.1 — Fix Instagram HTTP 403
+Correzione dell'errore `Error while downloading file. Upstream status code: 403`.
+
+Il problema poteva avvenire quando GPT tentava di scaricare direttamente una copertina Instagram protetta. Ora Apps Script prova prima a scaricare l'immagine e la passa a GPT come data URL soltanto se realmente accessibile. Se Instagram blocca la foto, RicettaGo continua con caption/trascrizione e salva comunque la ricetta.
+
+Anche il salvataggio della copertina su Drive è non bloccante: in caso di 403 la ricetta viene salvata senza immagine. `ImportLog` registra separatamente SOURCE_OK, RECIPE_OK, IMAGE_OK/IMAGE_WARNING e OK.
+
+### Aggiornamento
+Per correggere il 403 basta sostituire `apps-script/Code.gs`, ridistribuire Apps Script come nuova versione e sostituire `sw.js` su GitHub per aggiornare la cache.
