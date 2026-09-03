@@ -1,91 +1,71 @@
-# RicettaGo — GitHub Pages + Google Sheets + Drive + GPT
+# RicettaGo Complete v5
 
-Questa versione non richiede Vercel, Firebase o un server tradizionale.
+RicettaGo è una PWA statica per GitHub Pages con backend Google Apps Script, database Google Sheets, immagini Google Drive, OpenAI e Apify per i Reel Instagram pubblici.
 
-## Architettura
-- **GitHub Pages**: interfaccia HTML/CSS/JS e PWA.
-- **Google Apps Script**: backend.
-- **Google Sheets**: database.
-- **Google Drive**: immagini.
-- **OpenAI API**: chiamata esclusivamente da Apps Script.
+## Funzioni incluse (1–12)
+1. Importatore universale: Instagram, YouTube, siti Recipe/JSON-LD, testo, foto/screenshot e fallback controllati.
+2. Analisi social: caption + trascrizione + fino a 4 immagini/fotogrammi/copertine esposti dalla fonte; niente ingredienti inventati.
+3. Scheda ricetta moderna con foto, macro, fonte/video originale, passaggi spuntabili.
+4. Cambio porzioni automatico lato app.
+5. Categoria, tag, difficoltà e apparecchi classificati automaticamente.
+6. Ricerca normale + ricerca AI in linguaggio naturale.
+7. Dispensa: trova ricette compatibili o crea una nuova idea AI.
+8. Lista spesa intelligente: aggrega quantità e categorie per reparto.
+9. Piano settimanale drag & drop + generazione Menu AI.
+10. Preferiti, voto 1–5 e note personali.
+11. Conversione in variante Bimby o friggitrice ad aria senza sovrascrivere l'originale.
+12. Importazione multipla, un link per riga, eseguita sequenzialmente.
 
-> IMPORTANTE: la chiave OpenAI NON deve essere inserita nel repository GitHub o nel JavaScript pubblico. Il codice può stare tutto su GitHub; il segreto va nelle **Script Properties** di Apps Script.
+## Aggiornamento da una versione precedente
+La funzione `setupRicettaGo()` non cancella i dati: aggiunge le colonne mancanti ai fogli esistenti. È comunque consigliato fare una copia del Foglio Google prima dell'aggiornamento.
 
-## 1. Crea il backend Apps Script
-1. Apri Google Apps Script e crea un nuovo progetto.
-2. Copia `apps-script/Code.gs` nel file `Code.gs`.
-3. Copia il contenuto di `apps-script/appsscript.json` nel manifest del progetto.
-4. In **Impostazioni progetto → Proprietà script**, crea:
-   - `OPENAI_API_KEY` = la tua chiave API OpenAI.
-5. Esegui manualmente una volta la funzione `setupRicettaGo`.
-6. Autorizza accesso a Fogli Google, Drive e richieste esterne.
-7. Nei log troverai il Foglio Google e la cartella Drive creati automaticamente.
-
-## 2. Pubblica Apps Script
-1. **Esegui deployment → Nuovo deployment → App web**.
-2. Esegui come: **Me**.
-3. Accesso: scegli l'opzione che consente alla tua GitHub Page di chiamare la Web App.
-4. Copia l'URL che termina in `/exec`.
-
-## 3. Pubblica su GitHub Pages
+## 1. GitHub
 Carica nella root del repository:
 - `index.html`
 - `manifest.webmanifest`
 - `sw.js`
 - cartella `assets`
 
-In GitHub: **Settings → Pages → Deploy from a branch → main / root**.
+GitHub → Settings → Pages → Deploy from branch → `main` / root.
 
-Apri il sito GitHub Pages, premi ⚙️ e incolla l'URL `/exec` di Apps Script.
+## 2. Google Apps Script
+Crea/apri il backend. Sostituisci completamente `Code.gs` con `apps-script/Code.gs` e il manifest con `apps-script/appsscript.json`.
+
+In **Impostazioni progetto → Proprietà script** inserisci:
+- `OPENAI_API_KEY` = chiave OpenAI
+- `APIFY_API_TOKEN` = token Apify
+- facoltativo `OPENAI_MODEL` = modello che vuoi usare (default nel codice: `gpt-5-mini`)
+- facoltativo `APIFY_INSTAGRAM_ACTOR` = Actor Apify; default `apify~instagram-reel-scraper`
+
+Non mettere mai API key o token nei file GitHub.
+
+## 3. Migrazione / setup
+Esegui manualmente `setupRicettaGo()` una volta. Crea o aggiorna:
+- Recipes
+- Planner
+- Shopping
+- Pantry
+- ImportLog
+
+Crea inoltre `RicettaGo Immagini` su Drive se non esiste.
+
+## 4. Deployment
+Apps Script → Esegui deployment → Gestisci deployment / Nuovo deployment → App web.
+- Esegui come: **Me**
+- accesso: l'opzione che consente alla GitHub Page di chiamare la Web App
+
+Copia l'URL `/exec` e incollalo in RicettaGo → ⚙ Impostazioni.
+
+## 5. Instagram
+La v5 usa Apify per i Reel pubblici. Il backend prova l'Actor con URL diretto e recupera caption, transcript, `displayUrl`, immagini e `videoUrl` quando disponibili. Le URL CDN Instagram possono scadere: per questo la copertina viene copiata su Google Drive.
+
+Se un Reel è privato, rimosso o non restituisce dati sufficienti, RicettaGo interrompe l'importazione invece di creare una scheda vuota. In quel caso usa screenshot/testo.
+
+## 6. Video e fotogrammi
+Con l'architettura GitHub + Apps Script non viene eseguito FFmpeg. RicettaGo analizza transcript/caption e le immagini/fotogrammi che la fonte o Apify rendono disponibili. Per testo mostrato solo in fotogrammi non esposti, carica uno screenshot: verrà analizzato via vision.
+
+## 7. Importazione multipla
+Usa la modalità **Importazione multipla**, un URL per riga. Il browser effettua una chiamata separata per ogni link, così una fonte lenta non fa fallire l'intero lotto.
 
 ## Sicurezza
-GitHub Pages è pubblico lato client. Qualunque segreto inserito nei file GitHub può essere letto. Per questo la API key GPT è conservata nelle Script Properties di Google Apps Script. Il browser conosce soltanto l'URL della Web App.
-
-Per un'app personale/familiare questa architettura è semplice ed economica. Prima di renderla pubblica a molti utenti è consigliato aggiungere autenticazione e protezione anti-abuso.
-
-## Importazione da social
-Foto/screenshot e testo sono supportati direttamente. Un semplice link Instagram/TikTok/YouTube non garantisce che Apps Script/OpenAI possa leggere il contenuto del post; l'app evita di inventare una ricetta quando il contenuto non è disponibile.
-
-
-## v2 - Importazione dai siti web
-Quando incolli l'URL di una normale pagina di ricetta, Apps Script scarica la pagina e cerca prima i dati strutturati Schema.org Recipe (JSON-LD): titolo, ingredienti, istruzioni, porzioni, tempi, nutrizione e immagine. Se non sono presenti, passa a GPT il testo leggibile della pagina come fallback. La foto principale viene copiata su Google Drive quando il sito ne consente il download.
-
-### Aggiornamento
-Sostituisci `index.html` su GitHub e `Code.gs` in Apps Script con quelli di questa versione. Poi crea una nuova versione/deployment della Web App Apps Script. Se cambia l'URL `/exec`, aggiornalo nelle impostazioni di RicettaGo.
-
-
-## v3 — YouTube e Instagram
-- **YouTube**: prova a leggere titolo, descrizione, immagine e la prima traccia di sottotitoli/trascrizione pubblicamente esposta dal player.
-- **Instagram Reel/Post**: prova a leggere metadati pubblici (titolo/caption/immagine) dalla pagina.
-- Se i dati social sono insufficienti, il backend può tentare una **ricerca web OpenAI** tramite Responses API. Modello configurabile con Script Property `OPENAI_WEB_MODEL`; default `gpt-5-mini`.
-- Se anche il recupero web non trova il contenuto, l'app interrompe l'importazione e chiede screenshot/testo: non inventa una ricetta.
-
-### Aggiornamento v3
-1. Su GitHub sostituisci `index.html` (e gli eventuali file modificati del pacchetto).
-2. In Google Apps Script sostituisci interamente `Code.gs`.
-3. Distribuisci una nuova versione della Web App.
-4. Mantieni `OPENAI_API_KEY` nelle Script Properties. Facoltativo: aggiungi `OPENAI_WEB_MODEL` = `gpt-5-mini`.
-5. Se il nuovo deployment ha un URL `/exec` diverso, aggiornalo in ⚙️ nell'app.
-
-### Nota sui social
-Instagram e YouTube possono cambiare markup o limitare accessi automatizzati. Per questo l'importazione è best-effort e include fallback; nessun metodo puramente GitHub/Apps Script può garantire l'accesso a ogni Reel privato, limitato o non indicizzato.
-
-
-## v3.1
-Corretto errore di sintassi nella funzione `meta_()` del file `Code.gs` (virgolette nella RegExp).
-
-## v3.1.1 — Solo link originale
-Questa build riparte esattamente dal backend `Code.gs` della v3.1 corretta.
-Non è stata modificata alcuna funzione di importazione Instagram, YouTube, foto o GPT.
-
-Sono stati modificati esclusivamente:
-- `assets/app.js`: pulsante **Apri video / fonte originale**
-- `assets/style.css`: stile del pulsante
-- `sw.js`: nuovo nome cache per forzare l'aggiornamento della PWA
-
-Per aggiornare una v3.1 funzionante, sostituisci SOLO questi tre file su GitHub.
-NON sostituire `apps-script/Code.gs`.
-
-
-## v4 - Instagram via Apify
-Aggiungi nelle Script Properties `APIFY_API_TOKEN` con il tuo token Apify. Instagram Reel usa `apify/instagram-reel-scraper`, richiede caption, transcript e copertina `displayUrl`; GPT crea la ricetta e la foto viene salvata su Drive. Poi crea una nuova versione del deployment Apps Script.
+Le API key sono solo nelle Script Properties. GitHub Pages contiene esclusivamente codice client pubblico. Prima di esporre l'app a utenti non fidati, aggiungi autenticazione/allowlist perché un URL Apps Script pubblico può essere abusato da chi lo scopre.

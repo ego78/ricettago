@@ -1,82 +1,71 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#fff8ef">
-  <title>RicettaGo</title>
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./assets/style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e85d3f">
+<title>RicettaGo</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="stylesheet" href="./assets/style.css">
 </head>
 <body>
-<header class="top">
-  <div><div class="brand">RicettaGo</div><small>Il tuo ricettario intelligente</small></div>
-  <button id="settingsBtn" class="icon">⚙️</button>
+<header class="topbar">
+  <button class="brandBtn" onclick="showPage('home')"><span class="logo">RG</span><span><b>RicettaGo</b><small>Ricette intelligenti</small></span></button>
+  <div class="topActions"><button class="iconBtn" onclick="showPage('favorites')" title="Preferiti">♥</button><button class="iconBtn" onclick="showPage('settings')" title="Impostazioni">⚙</button></div>
 </header>
-
 <main>
 <section id="home" class="page active">
-  <div class="hero">
-    <span class="pill">✨ AI + Google Drive</span>
-    <h1>Da un'idea a una ricetta salvata.</h1>
-    <p>Incolla un link da sito, YouTube o Instagram. RicettaGo prova a leggere ricetta, descrizione, sottotitoli e foto; puoi anche usare testo o screenshot.</p>
-  </div>
-  <div class="card">
-    <label>Testo o link della ricetta</label>
-    <textarea id="sourceText" rows="5" placeholder="Incolla un link YouTube/Instagram/sito web, oppure testo della ricetta..."></textarea>
-    <label class="fileBtn">📷 Scegli foto<input id="photo" type="file" accept="image/*" hidden></label>
-    <div id="photoName" class="muted"></div>
+  <div class="hero"><span class="badge">AI • Instagram • YouTube • Web</span><h1>Salva qualsiasi ricetta.<br>Organizzala come vuoi.</h1><p>Incolla un link, testo o screenshot. RicettaGo prova più metodi in cascata e conserva sempre la fonte originale.</p></div>
+  <div class="card importer">
+    <div class="segmented"><button class="seg active" data-mode="single">Una ricetta</button><button class="seg" data-mode="bulk">Importazione multipla</button></div>
+    <label>Link, testo o descrizione</label>
+    <textarea id="sourceText" rows="5" placeholder="Instagram Reel, YouTube/Short, sito web oppure testo della ricetta..."></textarea>
+    <div id="bulkHint" class="hint hidden">Inserisci un link per riga. L'app li importerà uno alla volta per evitare timeout.</div>
+    <div class="uploadRow"><label class="uploadBtn">📷 Screenshot / foto<input id="photoInput" type="file" accept="image/*" hidden></label><span id="photoName" class="muted"></span></div>
     <button id="importBtn" class="primary">✨ Importa ricetta</button>
-    <div id="status" class="status"></div>
+    <div id="importProgress" class="progress hidden"><div id="progressBar"></div></div><div id="status" class="status"></div>
   </div>
-  <h2>Ultime ricette</h2><div id="recent" class="grid"></div>
+  <div class="sectionHead"><h2>Ultime ricette</h2><button class="textBtn" onclick="showPage('library')">Vedi tutte →</button></div><div id="recent" class="recipeGrid"></div>
+  <div class="quickGrid"><button class="quick" onclick="showPage('pantry')"><b>🥕 Cosa ho in casa?</b><span>Trova ricette dagli ingredienti disponibili</span></button><button class="quick" onclick="showPage('planner')"><b>📅 Crea menu</b><span>Pianifica la settimana con l'AI</span></button></div>
 </section>
 
 <section id="library" class="page">
-  <h1>Ricettario</h1>
-  <input id="search" class="search" placeholder="🔎 Cerca ricetta...">
-  <div id="recipes" class="grid"></div>
+  <div class="sectionHead"><div><h1>Ricettario</h1><p class="muted">Cerca per titolo, ingrediente, categoria o con una frase naturale.</p></div></div>
+  <div class="searchRow"><input id="searchInput" placeholder="es. cena con pollo in 20 minuti"><button id="aiSearchBtn" class="secondary">✨ Cerca AI</button></div>
+  <div id="filters" class="filterRow"></div><div id="recipes" class="recipeGrid"></div>
+</section>
+
+<section id="favorites" class="page"><div class="sectionHead"><h1>Preferiti</h1></div><div id="favoriteRecipes" class="recipeGrid"></div></section>
+
+<section id="recipe" class="page"><button class="backBtn" onclick="showPage('library')">← Ricettario</button><div id="recipeDetail"></div></section>
+
+<section id="pantry" class="page">
+  <div class="sectionHead"><div><h1>Dispensa</h1><p class="muted">Aggiungi ciò che hai già in casa e scopri cosa puoi cucinare.</p></div></div>
+  <div class="card pantryAdd"><input id="pantryItem" placeholder="Ingrediente"><input id="pantryQty" type="number" step="0.1" placeholder="Qtà"><input id="pantryUnit" placeholder="Unità"><button id="addPantry" class="secondary">Aggiungi</button></div>
+  <div id="pantryList" class="card"></div>
+  <div class="row"><button id="pantrySuggest" class="primary compact">🔎 Cerca nel mio ricettario</button><button id="pantryGenerate" class="secondary">✨ Crea nuova ricetta</button></div>
+  <div id="pantryResults" class="recipeGrid"></div>
 </section>
 
 <section id="planner" class="page">
-  <h1>Piano settimanale</h1>
-  <p class="muted">Scegli una ricetta per ogni pasto. Le modifiche vengono salvate nel Foglio Google.</p>
-  <div id="plan"></div>
+  <div class="sectionHead"><div><h1>Piano settimanale</h1><p class="muted">Trascina ricette nei pasti oppure fai creare il menu all'AI.</p></div><button id="aiPlanBtn" class="secondary">✨ Menu AI</button></div>
+  <div class="card"><label>Preferenze per il menu</label><input id="planPrefs" placeholder="es. pasti semplici, 2 pesci, 2 carni, una pizza sabato..."><div class="weekRow"><button id="prevWeek" class="iconBtn">‹</button><b id="weekLabel"></b><button id="nextWeek" class="iconBtn">›</button></div></div>
+  <div class="plannerLayout"><aside><input id="planSearch" placeholder="Cerca ricetta..."><div id="dragRecipes" class="dragList"></div></aside><div id="plan" class="planGrid"></div></div>
 </section>
 
 <section id="shopping" class="page">
-  <div class="row"><h1>Lista spesa</h1><button id="buildShopping" class="secondary">Genera dal piano</button></div>
-  <div id="shoppingList" class="card"></div>
-</section>
-
-<section id="recipe" class="page">
-  <button class="back" onclick="showPage('library')">← Ricettario</button>
-  <div id="recipeDetail"></div>
+  <div class="sectionHead"><div><h1>Lista della spesa</h1><p class="muted">Quantità aggregate e alimenti raggruppati per reparto.</p></div><button id="buildShopping" class="secondary">✨ Genera dal menu</button></div>
+  <div class="weekRow"><button id="shopPrev" class="iconBtn">‹</button><b id="shopWeekLabel"></b><button id="shopNext" class="iconBtn">›</button></div><div id="shoppingList"></div>
 </section>
 
 <section id="settings" class="page">
-  <h1>Configurazione</h1>
-  <div class="card">
-    <label>URL Web App Google Apps Script</label>
-    <input id="apiUrl" placeholder="https://script.google.com/macros/s/.../exec">
-    <p class="muted">La chiave OpenAI non va qui: resta nelle Script Properties di Google Apps Script.</p>
-    <button id="saveSettings" class="primary">Salva configurazione</button>
-  </div>
-  <div class="card">
-    <h3>Architettura</h3>
-    <p><b>GitHub Pages</b> → interfaccia PWA</p>
-    <p><b>Apps Script</b> → backend e protezione chiave GPT</p>
-    <p><b>Google Sheets</b> → ricette, piano e spesa</p>
-    <p><b>Google Drive</b> → immagini</p>
-  </div>
+  <h1>Impostazioni</h1>
+  <div class="card"><label>URL Web App Google Apps Script</label><input id="apiUrl" placeholder="https://script.google.com/macros/s/.../exec"><button id="saveSettings" class="primary compact">Salva</button><button id="testBackend" class="secondary">Test collegamento</button><div id="backendStatus" class="status"></div></div>
+  <div class="card"><h3>Architettura</h3><p><b>GitHub Pages</b> — app/PWA</p><p><b>Google Apps Script</b> — backend e segreti</p><p><b>Google Sheets</b> — ricette, dispensa, menu e spesa</p><p><b>Google Drive</b> — immagini</p><p><b>Apify</b> — lettura Reel Instagram pubblici</p><p><b>OpenAI</b> — estrazione, classificazione e funzioni intelligenti</p></div>
 </section>
 </main>
-
-<nav>
-<button data-page="home" class="active">⌂<span>Home</span></button>
-<button data-page="library">📖<span>Ricette</span></button>
-<button data-page="planner">📅<span>Piano</span></button>
-<button data-page="shopping">🛒<span>Spesa</span></button>
-</nav>
+<nav class="bottomNav"><button data-page="home" class="active">⌂<span>Home</span></button><button data-page="library">📖<span>Ricette</span></button><button data-page="pantry">🥕<span>Dispensa</span></button><button data-page="planner">📅<span>Menu</span></button><button data-page="shopping">🛒<span>Spesa</span></button></nav>
+<div id="toast" class="toast"></div>
+<div id="modal" class="modal hidden"><div class="modalBox"><button class="modalClose" onclick="closeModal()">×</button><div id="modalContent"></div></div></div>
 <script src="./assets/app.js"></script>
 </body></html>
